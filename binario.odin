@@ -1,7 +1,7 @@
 package binario
 
 
-Type :: enum {
+Type :: enum i8 {
 	I8,
 	I16,
 	I32,
