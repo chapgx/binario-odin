@@ -13,7 +13,7 @@ Type :: enum {
 	U32,
 	U64,
 	U128,
-	S, // string
-	B, // boolean
-	R, // rune
+	String, // string
+	Boolean, // boolean
+	Rune, // rune
 }
