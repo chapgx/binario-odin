@@ -2,7 +2,7 @@
 
 [SPANISH README](README_sp.md)
 
-Binario is a binary encoding library. It takes any primitive or user define data type and is able to ecnode into binary or decode it into it's data form. The purpose is to have a language agnostic binary encoding library
+Binario is a binary encoding library. It takes any primitive or user define data type and is able to encode into binary or decode it into it's data form. The purpose is to have a language agnostic binary encoding library
 
 `Library is under active development. API and internals may change often for the forseable future`
 

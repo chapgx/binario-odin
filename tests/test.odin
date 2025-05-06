@@ -80,10 +80,18 @@ test_string :: proc(t: ^testing.T) {
 	d: string
 	buff, e := b.encode(o)
 	testing.expect(t, e == nil, "expects e to be nil when encoding string")
-	log.infof("%v\n", buff)
 	e = b.decode(buff, d)
 	testing.expect(t, e == b.Error.EOF, "expects e to be EOF when decoding string")
 	testing.expectf(t, o == d, "expected %q got %q", o, d)
+
+
+	utfo: string = "Hello 😀"
+	ufto_check: string
+	buff, e = b.encode(utfo)
+	testing.expectf(t, e == nil, "expecte e to be nil when encoding string with utf8 character")
+	e = b.decode(buff, ufto_check)
+	testing.expectf(t, e == b.Error.EOF, "expects e to be end of file got %s", e)
+	testing.expectf(t, utfo == ufto_check, "expected %q got %q", utfo, ufto_check)
 }
 
 test_int :: proc(t: ^testing.T, o: $T, $N: T, alloc := context.allocator) {
