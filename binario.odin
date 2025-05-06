@@ -101,8 +101,10 @@ Type :: enum i8 {
 	UInt,
 	String, // string
 	Boolean, // boolean
-	Rune, // rune
+	Rune, // rune 32bit integer
 	Struct, // struct
+
+	//TODO: expand to account for odin specific primitive types like i32be, i32le or complex32 and quaternion64
 }
 
 
