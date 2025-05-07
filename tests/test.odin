@@ -92,7 +92,34 @@ test_string :: proc(t: ^testing.T) {
 	e = b.decode(buff, ufto_check)
 	testing.expectf(t, e == b.Error.EOF, "expects e to be end of file got %s", e)
 	testing.expectf(t, utfo == ufto_check, "expected %q got %q", utfo, ufto_check)
+
+	r: rune = '😀'
+	rr: rune
+	buff, e = b.encode(r)
+	testing.expectf(
+		t,
+		e == nil,
+		"expecte e to be nil when encoding rune character",
+	);e = b.decode(buff, rr)
+	testing.expectf(t, e == b.Error.EOF, "expects e to be end of file got %s", e)
+	testing.expectf(t, r == rr, "expected %q got %q", r, rr)
 }
+
+Person :: struct {
+	name: string,
+	age:  int,
+}
+
+// @(test)
+// test_struct :: proc(t: ^testing.T) {
+// 	p := Person {
+// 		name = "Richard",
+// 		age  = 33,
+// 	}
+// 	p2: Person
+// 	buff, e := b.encode(p)
+// 	testing.expectf(t, e == nil, "expects e to be nil when encoding struct. got %s", e)
+// }
 
 test_int :: proc(t: ^testing.T, o: $T, $N: T, alloc := context.allocator) {
 	o: T = N

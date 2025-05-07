@@ -4,6 +4,7 @@ import "base:runtime"
 import "core:fmt"
 import "core:log"
 
+
 Buff :: struct {
 	content: []byte,
 	offset:  int,
@@ -45,6 +46,7 @@ new_buff_with_content :: proc(size: int, b: []byte) -> Buff {
 
 write :: proc {
 	write_byte,
+	write_bytes_and_type,
 	write_bytes,
 }
 
@@ -62,7 +64,17 @@ write_byte :: proc(buff: ^Buff, type: Type, b: byte) -> Error {
 }
 
 
-write_bytes :: proc(buff: ^Buff, type: Type, b: []byte) -> Error {
+write_bytes :: proc(buff: ^Buff, b: []byte) -> Error {
+	if buff.offset >= len(buff.content) {
+		return Error.Full
+	}
+	copy(buff.content[buff.offset:], b)
+	buff.offset += len(b)
+	return nil
+}
+
+
+write_bytes_and_type :: proc(buff: ^Buff, type: Type, b: []byte) -> Error {
 	if buff.offset >= len(buff.content) {
 		return Error.Full
 	}
@@ -103,8 +115,49 @@ Type :: enum i8 {
 	Boolean, // boolean
 	Rune, // rune 32bit integer
 	Struct, // struct
-
+	Unsupported,
 	//TODO: expand to account for odin specific primitive types like i32be, i32le or complex32 and quaternion64
+}
+
+
+// Typeid to enum
+typetoe :: proc(t: typeid) -> Type {
+	returnt: Type
+	switch t {
+	case i8:
+		returnt = Type.I8
+	case i16:
+		returnt = Type.I16
+	case i32:
+		returnt = Type.I32
+	case i64:
+		returnt = Type.I64
+	case i128:
+		returnt = Type.I128
+	case int:
+		returnt = Type.Int
+	case u8:
+		returnt = Type.U8
+	case u16:
+		returnt = Type.U16
+	case u32:
+		returnt = Type.U32
+	case u64:
+		returnt = Type.U64
+	case u128:
+		returnt = Type.U128
+	case uint:
+		returnt = Type.UInt
+	case bool:
+		returnt = Type.Boolean
+	case string:
+		returnt = Type.String
+	case rune:
+		returnt = Type.Rune
+	case:
+		returnt = Type.Unsupported
+	}
+	return returnt
 }
 
 
@@ -142,6 +195,71 @@ btobool :: proc(b: []byte) -> (int, [1]byte) {
 	return 1, buff
 }
 
+// Encode priomitive type that can be cast directly into an integer
+encode_primitive_int :: #force_inline proc($T: typeid, $SIZE: int, ptr: rawptr) -> [SIZE + 1]byte {
+	arr: [SIZE + 1]byte
+	buff := itob(ptr, SIZE)
+	arr[0] = u8(typetoe(T))
+	copy(arr[1:], buff[:])
+	return arr
+}
+
+encode_string :: proc(ptr: rawptr, alloc := context.allocator) -> []byte {
+	sp := (^string)(ptr)
+	slice := make([]byte, len(sp^) + 2, alloc)
+	slice[0] = u8(Type.String)
+	slice[1] = cast(u8)len(sp^)
+	copy(slice[2:], sp[:])
+	return slice
+}
+
+encode_int :: proc(id: typeid, b: ^Buff, ptr: rawptr) {
+	switch id {
+	case i8:
+		arr := encode_primitive_int(i8, size_of(i8), ptr)
+		write(b, arr[:])
+	case i16:
+		arr := encode_primitive_int(i16, size_of(i16), ptr)
+		write(b, arr[:])
+	case i32:
+		arr := encode_primitive_int(i32, size_of(i32), ptr)
+		write(b, arr[:])
+	case i64:
+		arr := encode_primitive_int(i64, size_of(i64), ptr)
+		write(b, arr[:])
+	case i128:
+		arr := encode_primitive_int(i128, size_of(i128), ptr)
+		write(b, arr[:])
+	case int:
+		arr := encode_primitive_int(int, size_of(int), ptr)
+		write(b, arr[:])
+	case u8:
+		arr := encode_primitive_int(u8, size_of(u8), ptr)
+		write(b, arr[:])
+	case u16:
+		arr := encode_primitive_int(u16, size_of(u16), ptr)
+		write(b, arr[:])
+	case u32:
+		arr := encode_primitive_int(u32, size_of(u32), ptr)
+		write(b, arr[:])
+	case u64:
+		arr := encode_primitive_int(u64, size_of(u64), ptr)
+		write(b, arr[:])
+	case u128:
+		arr := encode_primitive_int(u128, size_of(u128), ptr)
+		write(b, arr[:])
+	case uint:
+		arr := encode_primitive_int(uint, size_of(uint), ptr)
+		write(b, arr[:])
+	case bool:
+		arr := encode_primitive_int(bool, size_of(bool), ptr)
+		write(b, arr[:])
+	case rune:
+		arr := encode_primitive_int(rune, size_of(rune), ptr)
+		write(b, arr[:])
+	}
+}
+
 
 // Encodes v into slice of bytes returns slize of bytes or error if any. Takes optional buff to avoid
 // allocation when creating [Buff]
@@ -157,55 +275,28 @@ encode :: proc(
 	ti := runtime.type_info_base(type_info_of(v.id))
 	b := buff == nil ? new_buff(ti.size, alloc) : new_buff_with_content(ti.size, buff)
 
-	switch ti.id {
-	case i8:
-		byts := itob(v.data, size_of(i8))
-		write(&b, Type.I8, byts[:])
-	case i16:
-		byts := itob(v.data, size_of(i16))
-		write(&b, Type.I16, byts[:])
-	case i32:
-		byts := itob(v.data, size_of(i32))
-		write(&b, Type.I32, byts[:])
-	case i64:
-		byts := itob(v.data, size_of(i64))
-		write(&b, Type.I64, byts[:])
-	case i128:
-		byts := itob(v.data, size_of(i128))
-		write(&b, Type.I128, byts[:])
-	case int:
-		byts := itob(v.data, size_of(int))
-		write(&b, Type.Int, byts[:])
-	case u8:
-		byts := itob(v.data, size_of(u8))
-		write(&b, Type.U8, byts[:])
-	case u16:
-		byts := itob(v.data, size_of(u16))
-		write(&b, Type.U16, byts[:])
-	case u32:
-		byts := itob(v.data, size_of(u32))
-		write(&b, Type.U32, byts[:])
-	case u64:
-		byts := itob(v.data, size_of(u64))
-		write(&b, Type.U64, byts[:])
-	case u128:
-		byts := itob(v.data, size_of(u128))
-		write(&b, Type.U128, byts[:])
-	case uint:
-		byts := itob(v.data, size_of(uint))
-		write(&b, Type.UInt, byts[:])
-	case bool:
-		byts := itob(v.data, size_of(bool))
-		write(&b, Type.Boolean, byts[:])
-	case string:
-		//NOTE: needs testing
-		rp := rawptr(uintptr(v.data))
-		sp := (^string)(rp)
-		byts := make([]byte, len(sp^) + 1, alloc)
-		byts[0] = cast(u8)len(sp^)
-		defer delete(byts, alloc)
-		copy(byts[1:], sp[:])
-		write(&b, Type.String, byts)
+	//NOTE: is there a better way to do this
+	#partial switch info in ti.variant {
+	case runtime.Type_Info_Integer:
+		encode_int(ti.id, &b, v.data)
+	case runtime.Type_Info_Boolean:
+		encode_int(ti.id, &b, v.data)
+	case runtime.Type_Info_Rune:
+		encode_int(ti.id, &b, v.data)
+	case runtime.Type_Info_String:
+		slice := encode_string(v.data)
+		defer delete(slice)
+		write(&b, slice)
+	case runtime.Type_Info_Struct:
+		variant := ti.variant.(runtime.Type_Info_Struct)
+		types := variant.types
+		names := variant.names
+		offsets := variant.offsets
+		fields := variant.field_count
+		for i: i32 = 0; i < fields; i += 1 {
+			t := types[i]
+			log.infof("%v\n", t)
+		}
 	case:
 		return nil, Error.UnsupportedType
 	}
@@ -337,6 +428,9 @@ read :: proc(
 		s := (^string)(v.data)
 		s^ = string(b[:length])
 		read += cast(int)length
+	case .Rune:
+		r := convert(v, rune, b)
+		read += r
 	case:
 		return 0, Error.UnsupportedType
 	}
