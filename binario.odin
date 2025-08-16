@@ -3,6 +3,7 @@ package binario
 import "base:runtime"
 import "core:fmt"
 import "core:log"
+import "core:mem"
 
 
 Buff :: struct {
@@ -48,6 +49,42 @@ write :: proc {
 	write_byte,
 	write_bytes_and_type,
 	write_bytes,
+	write_type,
+	write_size,
+	write_type_size,
+}
+
+
+write_type :: proc(buff: ^Buff, type: Type) -> Error {
+	if buff.offset >= len(buff.content) {
+		return Error.Full
+	}
+
+	buff.content[buff.offset] = cast(u8)type
+	buff.offset += 1
+	return nil
+}
+
+write_size :: proc(buff: ^Buff, size: int) -> Error {
+	if buff.offset >= len(buff.content) {
+		return Error.Full
+	}
+
+	buff.content[buff.offset] = u8(size)
+	buff.offset += 1
+	return nil
+}
+
+
+write_type_size :: proc(buff: ^Buff, type: Type, size: int) -> Error {
+	if buff.offset >= len(buff.content) {
+		return Error.Full
+	}
+
+	write_type(buff, type) or_return
+	write_size(buff, size) or_return
+
+	return nil
 }
 
 write_byte :: proc(buff: ^Buff, type: Type, b: byte) -> Error {
@@ -115,7 +152,15 @@ Type :: enum i8 {
 	Boolean, // boolean
 	Rune, // rune 32bit integer
 	Struct, // struct
+
+
+	//ENCODER TYPES
+
+
+	//ERROR
 	Unsupported,
+
+
 	//TODO: expand to account for odin specific primitive types like i32be, i32le or complex32 and quaternion64
 }
 
@@ -196,7 +241,13 @@ btobool :: proc(b: []byte) -> (int, [1]byte) {
 }
 
 // Encode priomitive type that can be cast directly into an integer
-encode_primitive_int :: #force_inline proc($T: typeid, $SIZE: int, ptr: rawptr) -> [SIZE + 1]byte {
+encode_primitive_int :: #force_inline proc(
+	$T: typeid,
+	$SIZE: int,
+	ptr: rawptr,
+	offset := -1,
+) -> [SIZE + 1]byte {
+	ptr := offset == -1 ? ptr : rawptr(uintptr(mem.ptr_offset((^T)(ptr), offset)))
 	arr: [SIZE + 1]byte
 	buff := itob(ptr, SIZE)
 	arr[0] = u8(typetoe(T))
@@ -213,49 +264,68 @@ encode_string :: proc(ptr: rawptr, alloc := context.allocator) -> []byte {
 	return slice
 }
 
-encode_int :: proc(id: typeid, b: ^Buff, ptr: rawptr) {
+
+encode_struct :: proc(variant: runtime.Type_Info_Struct, b: ^Buff, size: int, ptr: rawptr) {
+	write(b, Type.Struct, size)
+	types := variant.types
+	names := variant.names
+	offsets := variant.offsets
+	fields := variant.field_count
+	for i: i32 = 0; i < fields; i += 1 {
+		t := types[i]
+		name := names[i]
+		log.info(name, len(name))
+		#partial switch info in t.variant {
+		//TODO: finish encoding structs
+		case runtime.Type_Info_Integer:
+			encode_int(t.id, b, ptr, int(offsets[i]))
+		}
+	}
+}
+
+encode_int :: proc(id: typeid, b: ^Buff, ptr: rawptr, offset := -1) {
 	switch id {
 	case i8:
-		arr := encode_primitive_int(i8, size_of(i8), ptr)
+		arr := encode_primitive_int(i8, size_of(i8), ptr, offset)
 		write(b, arr[:])
 	case i16:
-		arr := encode_primitive_int(i16, size_of(i16), ptr)
+		arr := encode_primitive_int(i16, size_of(i16), ptr, offset)
 		write(b, arr[:])
 	case i32:
-		arr := encode_primitive_int(i32, size_of(i32), ptr)
+		arr := encode_primitive_int(i32, size_of(i32), ptr, offset)
 		write(b, arr[:])
 	case i64:
-		arr := encode_primitive_int(i64, size_of(i64), ptr)
+		arr := encode_primitive_int(i64, size_of(i64), ptr, offset)
 		write(b, arr[:])
 	case i128:
-		arr := encode_primitive_int(i128, size_of(i128), ptr)
+		arr := encode_primitive_int(i128, size_of(i128), ptr, offset)
 		write(b, arr[:])
 	case int:
-		arr := encode_primitive_int(int, size_of(int), ptr)
+		arr := encode_primitive_int(int, size_of(int), ptr, offset)
 		write(b, arr[:])
 	case u8:
-		arr := encode_primitive_int(u8, size_of(u8), ptr)
+		arr := encode_primitive_int(u8, size_of(u8), ptr, offset)
 		write(b, arr[:])
 	case u16:
-		arr := encode_primitive_int(u16, size_of(u16), ptr)
+		arr := encode_primitive_int(u16, size_of(u16), ptr, offset)
 		write(b, arr[:])
 	case u32:
-		arr := encode_primitive_int(u32, size_of(u32), ptr)
+		arr := encode_primitive_int(u32, size_of(u32), ptr, offset)
 		write(b, arr[:])
 	case u64:
-		arr := encode_primitive_int(u64, size_of(u64), ptr)
+		arr := encode_primitive_int(u64, size_of(u64), ptr, offset)
 		write(b, arr[:])
 	case u128:
-		arr := encode_primitive_int(u128, size_of(u128), ptr)
+		arr := encode_primitive_int(u128, size_of(u128), ptr, offset)
 		write(b, arr[:])
 	case uint:
-		arr := encode_primitive_int(uint, size_of(uint), ptr)
+		arr := encode_primitive_int(uint, size_of(uint), ptr, offset)
 		write(b, arr[:])
 	case bool:
-		arr := encode_primitive_int(bool, size_of(bool), ptr)
+		arr := encode_primitive_int(bool, size_of(bool), ptr, offset)
 		write(b, arr[:])
 	case rune:
-		arr := encode_primitive_int(rune, size_of(rune), ptr)
+		arr := encode_primitive_int(rune, size_of(rune), ptr, offset)
 		write(b, arr[:])
 	}
 }
@@ -289,14 +359,7 @@ encode :: proc(
 		write(&b, slice)
 	case runtime.Type_Info_Struct:
 		variant := ti.variant.(runtime.Type_Info_Struct)
-		types := variant.types
-		names := variant.names
-		offsets := variant.offsets
-		fields := variant.field_count
-		for i: i32 = 0; i < fields; i += 1 {
-			t := types[i]
-			log.infof("%v\n", t)
-		}
+		encode_struct(variant, &b, ti.size, v.data)
 	case:
 		return nil, Error.UnsupportedType
 	}

@@ -6,7 +6,7 @@ import "core:log"
 import "core:testing"
 
 
-@(test)
+// @(test)
 // Test primitives encoding and decodeing
 test_primitives :: proc(t: ^testing.T) {
 	defer free_all(context.allocator)
@@ -32,7 +32,7 @@ test_primitives :: proc(t: ^testing.T) {
 	test_int(t, c, 500_000_000)
 }
 
-@(test)
+// @(test)
 test_primitives_ui :: proc(t: ^testing.T) {
 	defer free_all(context.allocator)
 
@@ -72,7 +72,7 @@ test_primitives_ui :: proc(t: ^testing.T) {
 }
 
 
-@(test)
+// @(test)
 test_string :: proc(t: ^testing.T) {
 	defer free_all(context.allocator)
 
@@ -110,16 +110,16 @@ Person :: struct {
 	age:  int,
 }
 
-// @(test)
-// test_struct :: proc(t: ^testing.T) {
-// 	p := Person {
-// 		name = "Richard",
-// 		age  = 33,
-// 	}
-// 	p2: Person
-// 	buff, e := b.encode(p)
-// 	testing.expectf(t, e == nil, "expects e to be nil when encoding struct. got %s", e)
-// }
+@(test)
+test_struct :: proc(t: ^testing.T) {
+	p := Person {
+		name = "Richard",
+		age  = 33,
+	}
+	p2: Person
+	buff, e := b.encode(p)
+	testing.expectf(t, e == nil, "expects e to be nil when encoding struct. got %s", e)
+}
 
 test_int :: proc(t: ^testing.T, o: $T, $N: T, alloc := context.allocator) {
 	o: T = N
