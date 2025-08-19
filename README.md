@@ -6,11 +6,11 @@ Binario is a binary encoding library. It takes any primitive or user define data
 
 `Library is under active development. API and internals may change often for the forseable future`
 
-### Languges
+### Libraries
 
-- [GO](https://go.dev)
-- [ODIN](https://odin-lang.go)
-- [RUST](https://rust-lang.org)
+- [GO](https://github.com/chapgx/binario-go)
+- [ODIN](https://github.com/chapgx/binario-odin)
+- [RUST](https://github.com/chapgx/binario-rs)
 
 ## Quick Use
 
@@ -23,11 +23,16 @@ import "binario"
 main :: proc() {
   y: int = 100_000
   z: int
-  buff, e := binario.encode(y)
+  encoder := binario.encoder_new(size_of(int))
+  e := binario.encode(&encoder, y)
   if e != nil {
     panic(e)
   }
-  e = binario.decode(buff, z)
+
+  buff := encoder->read()
+  decoder := binario.decoder_new(buff)
+  e := decoder->decode(z)
+
   if e != nil {
     panic(e)
   }
